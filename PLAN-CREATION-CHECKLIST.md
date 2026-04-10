@@ -6,7 +6,7 @@
 
 ## Before Starting Any Phase
 
-- [ ] Read the project `CLAUDE.md` — it has rules that override defaults
+- [ ] Read the project `AGENTS.md` — it has rules that override defaults
 - [ ] Read `MASTER-PLAN.md` — understand where this phase fits in the overall project
 - [ ] Read the specific phase document in `New Plan/phases/`
 - [ ] Check that all prerequisite phases are marked complete

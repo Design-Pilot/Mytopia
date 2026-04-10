@@ -158,7 +158,7 @@ Track which tile the pointer is over:
 ## Blockers / Notes
 
 - Implemented with `**<Application>` + `<pixiContainer>`** from @pixi/react v8 (not legacy `<Stage>`).
-- `**TileGraphics.tsx**` was folded into `IsometricGrid.tsx` (single place for tile + hover `Graphics` layers).
+- `**TileGraphics.tsx`** was folded into `IsometricGrid.tsx` (single place for tile + hover `Graphics` layers).
 - **Pinch:** two-finger touch updates zoom from initial finger span; midpoint used for zoom-to-point.
 - **Trackpad:** horizontal-dominant wheel deltas pan; vertical zooms; **Ctrl/Meta + wheel** zooms and calls `preventDefault()` to avoid browser page zoom.
 

@@ -9,14 +9,27 @@ import {
   createDefaultIsoConfig,
   getGridWorldCenter,
   grassColorForTile,
-  GRID_HEIGHT,
-  GRID_WIDTH,
   tileToScreen,
 } from "@/lib/isoMath";
+import { DEFAULT_WORLD_CONFIG, type TileGrid, type TileType } from "@/types/world";
 
 extend({ Container, Graphics });
 
 const CANVAS_BACKGROUND = 0x2a3d2f;
+
+type IsometricGridProps = {
+  gridWidth?: number;
+  gridHeight?: number;
+  tileWidth?: number;
+  tileHeight?: number;
+  tileGrid?: TileGrid;
+};
+
+const TILE_COLORS: Record<TileType, number> = {
+  grass: 0x4a7c59,
+  water: 0x2b5f8d,
+  road: 0x7b756b,
+};
 
 function drawDiamond(
   g: Graphics,
@@ -40,20 +53,37 @@ function drawDiamond(
   );
 }
 
-export function IsometricGrid() {
+function colorForTile(tileType: TileType, gridX: number, gridY: number) {
+  if (tileType === "grass") {
+    return grassColorForTile(gridX, gridY);
+  }
+
+  return TILE_COLORS[tileType];
+}
+
+export function IsometricGrid({
+  gridWidth = DEFAULT_WORLD_CONFIG.gridWidth,
+  gridHeight = DEFAULT_WORLD_CONFIG.gridHeight,
+  tileWidth = DEFAULT_WORLD_CONFIG.tileWidth,
+  tileHeight = DEFAULT_WORLD_CONFIG.tileHeight,
+  tileGrid,
+}: IsometricGridProps) {
   const [size, setSize] = useState({ width: 0, height: 0 });
-  const isoConfig = useMemo(() => createDefaultIsoConfig(), []);
+  const isoConfig = useMemo(
+    () => createDefaultIsoConfig({ gridHeight, tileWidth, tileHeight }),
+    [gridHeight, tileHeight, tileWidth],
+  );
   const worldCenter = useMemo(
-    () => getGridWorldCenter(isoConfig, GRID_WIDTH, GRID_HEIGHT),
-    [isoConfig],
+    () => getGridWorldCenter(isoConfig, gridWidth, gridHeight),
+    [gridHeight, gridWidth, isoConfig],
   );
   const worldWidth = useMemo(
-    () => ((GRID_WIDTH + GRID_HEIGHT) * isoConfig.tileWidth) / 2,
-    [isoConfig],
+    () => ((gridWidth + gridHeight) * isoConfig.tileWidth) / 2,
+    [gridHeight, gridWidth, isoConfig],
   );
   const worldHeight = useMemo(
-    () => ((GRID_WIDTH + GRID_HEIGHT) * isoConfig.tileHeight) / 2,
-    [isoConfig],
+    () => ((gridWidth + gridHeight) * isoConfig.tileHeight) / 2,
+    [gridHeight, gridWidth, isoConfig],
   );
 
   const {
@@ -72,6 +102,8 @@ export function IsometricGrid() {
   } = useCamera({
     viewportWidth: size.width,
     viewportHeight: size.height,
+    gridWidth,
+    gridHeight,
     isoConfig,
     worldCenterX: worldCenter.screenX,
     worldCenterY: worldCenter.screenY,
@@ -103,16 +135,17 @@ export function IsometricGrid() {
   const drawTiles = useCallback(
     (g: Graphics) => {
       g.clear();
-      for (let gx = 0; gx < GRID_WIDTH; gx++) {
-        for (let gy = 0; gy < GRID_HEIGHT; gy++) {
+      for (let gx = 0; gx < gridWidth; gx++) {
+        for (let gy = 0; gy < gridHeight; gy++) {
           const c = tileToScreen(gx, gy, isoConfig);
-          const color = grassColorForTile(gx, gy);
+          const tileType = tileGrid?.[gy]?.[gx] ?? DEFAULT_WORLD_CONFIG.defaultTile;
+          const color = colorForTile(tileType, gx, gy);
           drawDiamond(g, c.screenX, c.screenY, halfW, halfH);
           g.fill({ color });
         }
       }
     },
-    [halfH, halfW, isoConfig],
+    [gridHeight, gridWidth, halfH, halfW, isoConfig, tileGrid],
   );
 
   const drawHover = useCallback(

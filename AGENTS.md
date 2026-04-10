@@ -1,6 +1,6 @@
 # MyTopia — AI / contributor notes
 
-## Stack (Phase 1 baseline)
+## Stack (Phase 2 baseline)
 
 | Piece | Version / notes |
 | --- | --- |
@@ -25,9 +25,10 @@ See `MASTER-PLAN.md` for the full roadmap.
 
 ## Architecture (short)
 
-- **Public viewer:** `src/app/page.tsx` → `IsometricCanvas` (Pixi `@pixi/react` `<Application>`).
+- **Public viewer:** `src/app/page.tsx` → `IsometricCanvas` → `IsometricGrid` (Pixi `<Application>` + world `<pixiContainer>` camera).
+- **Camera:** `src/hooks/useCamera.ts` — wheel zoom (passive: false), trackpad pan, drag pan, pinch zoom, tile hover.
 - **Data (later):** `useWorldData()` in `src/hooks/useWorldData.ts` will assemble Convex-backed `WorldData`.
-- **Isometric math:** `src/lib/isoMath.ts` — `tileToScreen` / `screenToTile` for 2:1 diamond tiles.
+- **Isometric math:** `src/lib/isoMath.ts` — `tileToScreen` / `screenToTile`, tile size constants, `createDefaultIsoConfig()`.
 
 ## Rules that matter
 

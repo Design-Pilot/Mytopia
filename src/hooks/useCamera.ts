@@ -8,8 +8,6 @@ import {
 } from "react";
 
 import {
-  GRID_HEIGHT,
-  GRID_WIDTH,
   type IsoMathConfig,
   screenToTile,
 } from "@/lib/isoMath";
@@ -24,6 +22,8 @@ export type HoverTile = { gx: number; gy: number };
 export type UseCameraOptions = {
   viewportWidth: number;
   viewportHeight: number;
+  gridWidth: number;
+  gridHeight: number;
   isoConfig: IsoMathConfig;
   worldCenterX: number;
   worldCenterY: number;
@@ -34,6 +34,8 @@ export type UseCameraOptions = {
 export function useCamera({
   viewportWidth,
   viewportHeight,
+  gridWidth,
+  gridHeight,
   isoConfig,
   worldCenterX,
   worldCenterY,
@@ -232,17 +234,12 @@ export function useCamera({
       const { gridX, gridY } = screenToTile(wx, wy, isoConfig);
       const gx = Math.round(gridX);
       const gy = Math.round(gridY);
-      if (
-        gx >= 0 &&
-        gx < GRID_WIDTH &&
-        gy >= 0 &&
-        gy < GRID_HEIGHT
-      ) {
+      if (gx >= 0 && gx < gridWidth && gy >= 0 && gy < gridHeight) {
         return { gx, gy };
       }
       return null;
     },
-    [isoConfig],
+    [gridHeight, gridWidth, isoConfig],
   );
 
   const applyZoomTowardScreenPoint = useCallback(

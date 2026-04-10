@@ -197,20 +197,20 @@ interface WorldData {
 
 ## Checklist
 
-- [ ] Read `convex/_generated/ai/guidelines.md`
-- [ ] Fetched current Convex docs via context7
-- [ ] `convex/schema.ts` created with world, entities, tiles, assets tables
-- [ ] `convex/world.ts` — get, update queries/mutations
-- [ ] `convex/entities.ts` — getAll, getByType, create, update, remove, move
-- [ ] `convex/tiles.ts` — getAll, set, setBatch, remove, removeBatch
-- [ ] `convex/assets.ts` — getAll, getByType, generateUploadUrl, create, remove
-- [ ] `convex/seed.ts` — seedWorld function (idempotent)
-- [ ] Seed runs successfully and creates world config
-- [ ] `src/types/world.ts` — WorldData, WorldConfig, Entity, Asset types
-- [ ] `src/hooks/useWorldData.ts` — assembles all queries into WorldData
-- [ ] useWorldData returns data in React (verified with console.log)
-- [ ] No Convex errors in console
-- [ ] Schema deploys cleanly
+- [x] Read `convex/_generated/ai/guidelines.md`
+- [x] Fetched current Convex docs via context7
+- [x] `convex/schema.ts` created with world, entities, tiles, assets tables
+- [x] `convex/world.ts` — get, update queries/mutations
+- [x] `convex/entities.ts` — getAll, getByType, create, update, remove, move
+- [x] `convex/tiles.ts` — getAll, set, setBatch, remove, removeBatch
+- [x] `convex/assets.ts` — getAll, getByType, generateUploadUrl, create, remove, removeUnused (also `update`)
+- [x] `convex/seed.ts` — seedWorld function (idempotent)
+- [x] Seed runs successfully and creates world config
+- [x] `src/types/world.ts` — WorldData, WorldConfig, Entity, Asset types
+- [x] `src/hooks/useWorldData.ts` — assembles all queries into WorldData
+- [x] useWorldData returns data in React (verified with console.log in `IsometricCanvas` dev mode)
+- [x] No Convex errors in console
+- [x] Schema deploys cleanly
 
 ## Acceptance Criteria
 

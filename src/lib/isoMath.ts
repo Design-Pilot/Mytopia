@@ -31,6 +31,12 @@ export type TilePoint = {
   gridY: number;
 };
 
+export type CreateIsoConfigOptions = {
+  gridHeight?: number;
+  tileWidth?: number;
+  tileHeight?: number;
+};
+
 /**
  * Converts integer tile coordinates to screen pixels (center of the tile diamond).
  */
@@ -70,12 +76,17 @@ export function screenToTile(
  * Phase 2 layout: offset so the diamond island sits predictably in world space.
  * See `phases/phase-02-isometric-grid-camera.md`.
  */
-export function createDefaultIsoConfig(): IsoMathConfig {
-  const originX = GRID_HEIGHT * (TILE_WIDTH / 2);
-  const originY = TILE_HEIGHT;
+export function createDefaultIsoConfig(
+  options: CreateIsoConfigOptions = {},
+): IsoMathConfig {
+  const gridHeight = options.gridHeight ?? GRID_HEIGHT;
+  const tileWidth = options.tileWidth ?? TILE_WIDTH;
+  const tileHeight = options.tileHeight ?? TILE_HEIGHT;
+  const originX = gridHeight * (tileWidth / 2);
+  const originY = tileHeight;
   return {
-    tileWidth: TILE_WIDTH,
-    tileHeight: TILE_HEIGHT,
+    tileWidth,
+    tileHeight,
     originX,
     originY,
   };
