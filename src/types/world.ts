@@ -24,6 +24,7 @@ export type WorldConfig = {
   timeOfDay?: TimeOfDay;
   season?: Season;
   weather?: Weather;
+  phase4DemoSeeded?: boolean;
 };
 
 export type SeasonalAssets = Partial<Record<Season, Id<"assets">>>;

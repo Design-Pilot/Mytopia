@@ -60,17 +60,24 @@ export function useWorldData(): WorldData {
   const tiles = useQuery(api.tiles.getAll);
   const assets = useQuery(api.assets.getAll);
   const seedWorld = useMutation(api.seed.seedWorld);
-  const hasRequestedSeedRef = useRef(false);
+  const bootstrapRequestedRef = useRef(false);
 
   useEffect(() => {
-    if (world !== null || hasRequestedSeedRef.current) {
+    if (world === undefined) {
       return;
     }
 
-    hasRequestedSeedRef.current = true;
+    const needsBootstrap =
+      world === null || world.phase4DemoSeeded !== true;
+
+    if (!needsBootstrap || bootstrapRequestedRef.current) {
+      return;
+    }
+
+    bootstrapRequestedRef.current = true;
     void seedWorld().catch((error: unknown) => {
-      console.error("Failed to seed the world config.", error);
-      hasRequestedSeedRef.current = false;
+      console.error("Failed to bootstrap world / Phase 4 demo.", error);
+      bootstrapRequestedRef.current = false;
     });
   }, [seedWorld, world]);
 

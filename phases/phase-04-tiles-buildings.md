@@ -111,20 +111,20 @@ For testing without the admin editor, create a seed function or a dev helper tha
 
 ## Checklist
 
-- [ ] IsometricGrid uses useWorldData() instead of hardcoded data
-- [ ] Grass tiles render with green color + noise variation
-- [ ] Water tiles render with blue color
-- [ ] Road tiles render with grey color
-- [ ] EntityRenderer component created
-- [ ] Building sprites load from Convex URLs
-- [ ] Buildings anchored at bottom-center of tile
-- [ ] Depth sorting works (Y-based)
-- [ ] Sprite loading placeholder shown while loading
-- [ ] Sprite caching prevents duplicate loads
-- [ ] Building footprint sizes supported
-- [ ] Test data created (water, roads, 2-3 buildings)
-- [ ] Camera zoom/pan still works with all layers
-- [ ] No console errors
+- [x] IsometricGrid uses useWorldData() instead of hardcoded data
+- [x] Grass tiles render with green color + noise variation
+- [x] Water tiles render with blue color
+- [x] Road tiles render with grey color
+- [x] EntityRenderer component created (`EntityLayer.tsx`)
+- [x] Building sprites load from URLs (demo uses HTTPS; Convex `assetId` + storage still works)
+- [x] Buildings anchored at bottom-center of tile / footprint
+- [x] Depth sorting works (Y-based)
+- [x] Sprite loading placeholder shown while loading
+- [x] Sprite caching prevents duplicate loads
+- [x] Building footprint sizes supported
+- [x] Test data created (water, roads, 2-3 buildings)
+- [x] Camera zoom/pan still works with all layers
+- [x] No console errors (lint clean)
 
 ## Acceptance Criteria
 
@@ -147,4 +147,4 @@ For testing without the admin editor, create a seed function or a dev helper tha
 
 ## Blockers / Notes
 
-_Updated during development._
+- Convex **mutations** cannot call `ctx.storage.store()` (only `generateUploadUrl`). Phase 4 demo buildings use **optional `spriteUrl`** on `entities` plus stable HTTPS images so textures load without a separate upload action. Production sprites still use **`assetId` + file storage** as in Phase 3.

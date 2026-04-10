@@ -14,6 +14,10 @@ async function resolveEntitySpriteUrl(
   ctx: QueryCtx,
   entity: EntityDoc,
 ): Promise<string | undefined> {
+  if (entity.spriteUrl) {
+    return entity.spriteUrl;
+  }
+
   const world = await ctx.db.query("world").first();
   const seasonalAssetId =
     world?.season !== undefined

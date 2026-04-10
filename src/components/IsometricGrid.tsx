@@ -4,70 +4,38 @@ import { Application, extend } from "@pixi/react";
 import { Container, Graphics } from "pixi.js";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { EntityLayer } from "@/components/EntityLayer";
+import { TileLayer } from "@/components/TileLayer";
 import { useCamera } from "@/hooks/useCamera";
+import { useWorldData } from "@/hooks/useWorldData";
 import {
   createDefaultIsoConfig,
   getGridWorldCenter,
-  grassColorForTile,
   tileToScreen,
 } from "@/lib/isoMath";
-import { DEFAULT_WORLD_CONFIG, type TileGrid, type TileType } from "@/types/world";
+import { DEFAULT_WORLD_CONFIG, type WorldData } from "@/types/world";
 
 extend({ Container, Graphics });
 
 const CANVAS_BACKGROUND = 0x2a3d2f;
 
-type IsometricGridProps = {
-  gridWidth?: number;
-  gridHeight?: number;
-  tileWidth?: number;
-  tileHeight?: number;
-  tileGrid?: TileGrid;
-};
+function IsometricGridView({
+  worldData,
+}: {
+  worldData: WorldData;
+}) {
+  const {
+    world: {
+      gridWidth,
+      gridHeight,
+      tileWidth,
+      tileHeight,
+      defaultTile,
+    },
+    tileGrid,
+    entities,
+  } = worldData;
 
-const TILE_COLORS: Record<TileType, number> = {
-  grass: 0x4a7c59,
-  water: 0x2b5f8d,
-  road: 0x7b756b,
-};
-
-function drawDiamond(
-  g: Graphics,
-  cx: number,
-  cy: number,
-  halfW: number,
-  halfH: number,
-) {
-  g.poly(
-    [
-      cx,
-      cy - halfH,
-      cx + halfW,
-      cy,
-      cx,
-      cy + halfH,
-      cx - halfW,
-      cy,
-    ],
-    true,
-  );
-}
-
-function colorForTile(tileType: TileType, gridX: number, gridY: number) {
-  if (tileType === "grass") {
-    return grassColorForTile(gridX, gridY);
-  }
-
-  return TILE_COLORS[tileType];
-}
-
-export function IsometricGrid({
-  gridWidth = DEFAULT_WORLD_CONFIG.gridWidth,
-  gridHeight = DEFAULT_WORLD_CONFIG.gridHeight,
-  tileWidth = DEFAULT_WORLD_CONFIG.tileWidth,
-  tileHeight = DEFAULT_WORLD_CONFIG.tileHeight,
-  tileGrid,
-}: IsometricGridProps) {
   const [size, setSize] = useState({ width: 0, height: 0 });
   const isoConfig = useMemo(
     () => createDefaultIsoConfig({ gridHeight, tileWidth, tileHeight }),
@@ -132,22 +100,6 @@ export function IsometricGrid({
   const halfW = isoConfig.tileWidth / 2;
   const halfH = isoConfig.tileHeight / 2;
 
-  const drawTiles = useCallback(
-    (g: Graphics) => {
-      g.clear();
-      for (let gx = 0; gx < gridWidth; gx++) {
-        for (let gy = 0; gy < gridHeight; gy++) {
-          const c = tileToScreen(gx, gy, isoConfig);
-          const tileType = tileGrid?.[gy]?.[gx] ?? DEFAULT_WORLD_CONFIG.defaultTile;
-          const color = colorForTile(tileType, gx, gy);
-          drawDiamond(g, c.screenX, c.screenY, halfW, halfH);
-          g.fill({ color });
-        }
-      }
-    },
-    [gridHeight, gridWidth, halfH, halfW, isoConfig, tileGrid],
-  );
-
   const drawHover = useCallback(
     (g: Graphics) => {
       g.clear();
@@ -190,7 +142,14 @@ export function IsometricGrid({
           resizeTo={containerRef}
         >
           <pixiContainer scale={zoom} x={panX} y={panY}>
-            <pixiGraphics draw={drawTiles} />
+            <TileLayer
+              defaultTile={defaultTile}
+              gridHeight={gridHeight}
+              gridWidth={gridWidth}
+              isoConfig={isoConfig}
+              tileGrid={tileGrid}
+            />
+            <EntityLayer entities={entities} isoConfig={isoConfig} />
             <pixiGraphics draw={drawHover} />
           </pixiContainer>
         </Application>
@@ -209,4 +168,103 @@ export function IsometricGrid({
       </button>
     </div>
   );
+}
+
+function IsometricGridWithConvex() {
+  const worldData = useWorldData();
+
+  useEffect(() => {
+    if (process.env.NODE_ENV === "production" || worldData.isLoading) {
+      return;
+    }
+
+    console.log("MyTopia world data", worldData);
+  }, [worldData]);
+
+  if (worldData.isLoading) {
+    return <IsometricGridLoading />;
+  }
+
+  return (
+    <div className="relative h-full w-full">
+      <IsometricGridView worldData={worldData} />
+      <p className="pointer-events-none absolute left-4 bottom-4 rounded-md bg-black/40 px-3 py-1.5 text-xs text-emerald-100 backdrop-blur">
+        {`${worldData.entities.length} entities, ${worldData.assets.length} assets`}
+      </p>
+    </div>
+  );
+}
+
+function IsometricGridLoading() {
+  const [showOfflineFallback, setShowOfflineFallback] = useState(false);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setShowOfflineFallback(true);
+    }, 2000);
+
+    return () => window.clearTimeout(timeoutId);
+  }, []);
+
+  const fallbackData: WorldData = useMemo(
+    () => ({
+      world: DEFAULT_WORLD_CONFIG,
+      entities: [],
+      tileGrid: Array.from({ length: DEFAULT_WORLD_CONFIG.gridHeight }, () =>
+        Array.from({ length: DEFAULT_WORLD_CONFIG.gridWidth }, () =>
+          DEFAULT_WORLD_CONFIG.defaultTile,
+        ),
+      ),
+      assets: [],
+      isLoading: false,
+    }),
+    [],
+  );
+
+  if (showOfflineFallback) {
+    return (
+      <div className="relative h-full w-full">
+        <IsometricGridView worldData={fallbackData} />
+        <p className="pointer-events-none absolute left-4 bottom-4 rounded-md bg-black/40 px-3 py-1.5 text-xs text-amber-100 backdrop-blur">
+          Convex is offline locally, so this is the fallback demo grid.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative h-full w-full">
+      <IsometricGridView worldData={fallbackData} />
+      <p className="pointer-events-none absolute left-4 bottom-4 rounded-md bg-black/40 px-3 py-1.5 text-xs text-emerald-100 backdrop-blur">
+        Loading world data...
+      </p>
+    </div>
+  );
+}
+
+/** Isometric scene: tiles, entities, camera. Uses Convex when `NEXT_PUBLIC_CONVEX_URL` is set. */
+export function IsometricGrid() {
+  if (!process.env.NEXT_PUBLIC_CONVEX_URL) {
+    const offline: WorldData = {
+      world: DEFAULT_WORLD_CONFIG,
+      entities: [],
+      tileGrid: Array.from({ length: DEFAULT_WORLD_CONFIG.gridHeight }, () =>
+        Array.from({ length: DEFAULT_WORLD_CONFIG.gridWidth }, () =>
+          DEFAULT_WORLD_CONFIG.defaultTile,
+        ),
+      ),
+      assets: [],
+      isLoading: false,
+    };
+    return (
+      <div className="relative h-full w-full">
+        <IsometricGridView worldData={offline} />
+        <p className="pointer-events-none absolute left-4 bottom-4 rounded-md bg-black/40 px-3 py-1.5 text-xs text-amber-100 backdrop-blur">
+          Set NEXT_PUBLIC_CONVEX_URL for live data (run `npx convex dev`).
+        </p>
+      </div>
+    );
+  }
+
+  return <IsometricGridWithConvex />;
 }

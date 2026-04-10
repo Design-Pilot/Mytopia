@@ -111,17 +111,5 @@ export function getGridWorldCenter(
   return { screenX: cx, screenY: cy };
 }
 
-/** Deterministic grass tint per tile for subtle variation. */
-export function grassColorForTile(gridX: number, gridY: number): number {
-  const seed = (gridX * 92837111) ^ (gridY * 689287499);
-  const t = ((seed >>> 0) % 17) / 17;
-  const base = 0x4a7c59;
-  const r = ((base >> 16) & 0xff) + Math.round(t * 18 - 9);
-  const g = ((base >> 8) & 0xff) + Math.round(t * 14 - 7);
-  const b = (base & 0xff) + Math.round(t * 10 - 5);
-  return (
-    ((Math.min(255, Math.max(0, r)) & 0xff) << 16) |
-    ((Math.min(255, Math.max(0, g)) & 0xff) << 8) |
-    (Math.min(255, Math.max(0, b)) & 0xff)
-  );
-}
+/** @deprecated Prefer `@/lib/tileColors` — kept for re-exports. */
+export { grassColorForTile } from "@/lib/tileColors";
