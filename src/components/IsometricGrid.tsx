@@ -1,6 +1,7 @@
 "use client";
 
 import { Application, extend } from "@pixi/react";
+import { useConvexConnectionState } from "convex/react";
 import { Container, Graphics } from "pixi.js";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -172,6 +173,11 @@ function IsometricGridView({
 
 function IsometricGridWithConvex() {
   const worldData = useWorldData();
+  const connectionState = useConvexConnectionState();
+  const showOfflineFallback =
+    worldData.bootstrapFailed ||
+    (!connectionState.isWebSocketConnected &&
+      connectionState.connectionRetries > 0);
 
   useEffect(() => {
     if (process.env.NODE_ENV === "production" || worldData.isLoading) {
@@ -182,7 +188,11 @@ function IsometricGridWithConvex() {
   }, [worldData]);
 
   if (worldData.isLoading) {
-    return <IsometricGridLoading />;
+    return <IsometricGridLoading showOfflineFallback={showOfflineFallback} />;
+  }
+
+  if (showOfflineFallback) {
+    return <IsometricGridLoading showOfflineFallback />;
   }
 
   return (
@@ -195,17 +205,11 @@ function IsometricGridWithConvex() {
   );
 }
 
-function IsometricGridLoading() {
-  const [showOfflineFallback, setShowOfflineFallback] = useState(false);
-
-  useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      setShowOfflineFallback(true);
-    }, 2000);
-
-    return () => window.clearTimeout(timeoutId);
-  }, []);
-
+function IsometricGridLoading({
+  showOfflineFallback,
+}: {
+  showOfflineFallback: boolean;
+}) {
   const fallbackData: WorldData = useMemo(
     () => ({
       world: DEFAULT_WORLD_CONFIG,
@@ -217,6 +221,7 @@ function IsometricGridLoading() {
       ),
       assets: [],
       isLoading: false,
+      bootstrapFailed: false,
     }),
     [],
   );
@@ -255,6 +260,7 @@ export function IsometricGrid() {
       ),
       assets: [],
       isLoading: false,
+      bootstrapFailed: false,
     };
     return (
       <div className="relative h-full w-full">

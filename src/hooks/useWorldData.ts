@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery } from "convex/react";
 import type { FunctionReference } from "convex/server";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { api as generatedApi } from "../../convex/_generated/api";
 import {
@@ -61,14 +61,15 @@ export function useWorldData(): WorldData {
   const assets = useQuery(api.assets.getAll);
   const seedWorld = useMutation(api.seed.seedWorld);
   const bootstrapRequestedRef = useRef(false);
+  const [bootstrapFailed, setBootstrapFailed] = useState(false);
+  const hasBootstrapFailure = bootstrapFailed && world === null;
 
   useEffect(() => {
     if (world === undefined) {
       return;
     }
 
-    const needsBootstrap =
-      world === null || world.phase4DemoSeeded !== true;
+    const needsBootstrap = world === null;
 
     if (!needsBootstrap || bootstrapRequestedRef.current) {
       return;
@@ -77,6 +78,7 @@ export function useWorldData(): WorldData {
     bootstrapRequestedRef.current = true;
     void seedWorld().catch((error: unknown) => {
       console.error("Failed to bootstrap world / Phase 4 demo.", error);
+      setBootstrapFailed(true);
       bootstrapRequestedRef.current = false;
     });
   }, [seedWorld, world]);
@@ -106,7 +108,7 @@ export function useWorldData(): WorldData {
     entities === undefined ||
     tiles === undefined ||
     assets === undefined ||
-    world === null;
+    (world === null && !hasBootstrapFailure);
 
   return {
     world: worldConfig,
@@ -114,5 +116,6 @@ export function useWorldData(): WorldData {
     tileGrid,
     assets: resolvedAssets,
     isLoading,
+    bootstrapFailed: hasBootstrapFailure,
   };
 }

@@ -19,24 +19,38 @@ const DEMO_SPRITES = [
   "https://picsum.photos/seed/mytopia-loft/52/88",
 ] as const;
 
-async function insertPhase4Demo(ctx: MutationCtx, worldId: Id<"world">) {
-  const probe = await ctx.db
+async function upsertTile(
+  ctx: MutationCtx,
+  x: number,
+  y: number,
+  tileType: "road" | "water",
+) {
+  const existing = await ctx.db
     .query("tiles")
-    .withIndex("by_position", (q) => q.eq("x", 4).eq("y", 10))
+    .withIndex("by_position", (q) => q.eq("x", x).eq("y", y))
     .unique();
 
-  if (probe?.tileType === "road") {
-    await ctx.db.patch(worldId, { phase4DemoSeeded: true });
+  if (existing) {
+    await ctx.db.patch(existing._id, { tileType });
+    return;
+  }
+
+  await ctx.db.insert("tiles", { x, y, tileType });
+}
+
+async function insertPhase4Demo(ctx: MutationCtx, worldId: Id<"world">) {
+  const world = await ctx.db.get(worldId);
+  if (!world || world.phase4DemoSeeded === true) {
     return;
   }
 
   for (let x = 4; x <= 15; x++) {
-    await ctx.db.insert("tiles", { x, y: 10, tileType: "road" });
+    await upsertTile(ctx, x, 10, "road");
   }
 
   for (let x = 8; x <= 11; x++) {
     for (let y = 14; y <= 16; y++) {
-      await ctx.db.insert("tiles", { x, y, tileType: "water" });
+      await upsertTile(ctx, x, y, "water");
     }
   }
 
@@ -84,16 +98,18 @@ export const seedWorld = mutation({
   args: {},
   handler: async (ctx) => {
     let world = await ctx.db.query("world").first();
+    let createdWorld = false;
 
     if (!world) {
       const id = await ctx.db.insert("world", DEFAULT_WORLD);
       world = await ctx.db.get(id);
+      createdWorld = true;
       if (!world) {
         throw new Error("Failed to create world.");
       }
     }
 
-    if (world.phase4DemoSeeded !== true) {
+    if (createdWorld && world.phase4DemoSeeded !== true) {
       await insertPhase4Demo(ctx, world._id);
       world = await ctx.db.get(world._id);
     }

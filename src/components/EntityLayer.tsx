@@ -53,10 +53,6 @@ function EntitySprite({ entity, isoConfig }: EntitySpriteProps) {
       return;
     }
 
-    if (getCachedTexture(url)) {
-      return;
-    }
-
     let cancelled = false;
     void loadTextureCached(url)
       .then((tex) => {
@@ -124,9 +120,18 @@ export function EntityLayer({ entities, isoConfig }: EntityLayerProps) {
     const list = entities.filter(
       (e) => e.type === "building" || e.type === "decoration",
     );
-    return [...list].sort(
-      (a, b) => a.gridX + a.gridY - (b.gridX + b.gridY),
-    );
+    return [...list].sort((a, b) => {
+      const aDepth =
+        a.gridX + a.gridY + (a.footprintW ?? 1) + (a.footprintH ?? 1) - 2;
+      const bDepth =
+        b.gridX + b.gridY + (b.footprintW ?? 1) + (b.footprintH ?? 1) - 2;
+
+      if (aDepth !== bDepth) {
+        return aDepth - bDepth;
+      }
+
+      return String(a._id).localeCompare(String(b._id));
+    });
   }, [entities]);
 
   return (

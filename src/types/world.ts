@@ -54,6 +54,7 @@ export type WorldData = {
   tileGrid: TileGrid;
   assets: WorldAsset[];
   isLoading: boolean;
+  bootstrapFailed: boolean;
 };
 
 export const DEFAULT_WORLD_CONFIG: WorldConfig = {

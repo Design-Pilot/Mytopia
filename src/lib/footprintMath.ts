@@ -21,6 +21,8 @@ export function footprintBounds(
   footprintW: number,
   footprintH: number,
 ): FootprintBounds {
+  const width = Math.max(1, Math.floor(footprintW));
+  const height = Math.max(1, Math.floor(footprintH));
   const halfW = config.tileWidth / 2;
   const halfH = config.tileHeight / 2;
   let minX = Infinity;
@@ -28,8 +30,8 @@ export function footprintBounds(
   let minY = Infinity;
   let maxY = -Infinity;
 
-  for (let x = gridX; x < gridX + footprintW; x++) {
-    for (let y = gridY; y < gridY + footprintH; y++) {
+  for (let x = gridX; x < gridX + width; x++) {
+    for (let y = gridY; y < gridY + height; y++) {
       const c = tileToScreen(x, y, config);
       minX = Math.min(minX, c.screenX - halfW, c.screenX + halfW);
       maxX = Math.max(maxX, c.screenX - halfW, c.screenX + halfW);
