@@ -73,6 +73,8 @@ export const worldFields = {
   timeOfDay: v.optional(timeOfDayValidator),
   season: v.optional(seasonValidator),
   weather: v.optional(weatherValidator),
+  /** Set after Phase 4 demo tiles/entities are inserted (idempotent bootstrap). */
+  phase4DemoSeeded: v.optional(v.boolean()),
 };
 
 export const worldPatchFields = {
@@ -84,6 +86,7 @@ export const worldPatchFields = {
   timeOfDay: v.optional(timeOfDayValidator),
   season: v.optional(seasonValidator),
   weather: v.optional(weatherValidator),
+  phase4DemoSeeded: v.optional(v.boolean()),
 };
 
 export const entityCreationFields = {
@@ -97,6 +100,8 @@ export const entityCreationFields = {
   techStack: v.optional(v.array(v.string())),
   status: v.optional(entityStatusValidator),
   assetId: v.optional(v.id("assets")),
+  /** Direct texture URL (demo / manual); queries prefer this over `assetId` resolution. */
+  spriteUrl: v.optional(v.string()),
   footprintW: v.optional(v.number()),
   footprintH: v.optional(v.number()),
   animationFrames: v.optional(v.number()),
@@ -118,6 +123,7 @@ export const entityPatchFields = {
   techStack: v.optional(v.array(v.string())),
   status: v.optional(entityStatusValidator),
   assetId: v.optional(v.id("assets")),
+  spriteUrl: v.optional(v.string()),
   footprintW: v.optional(v.number()),
   footprintH: v.optional(v.number()),
   animationFrames: v.optional(v.number()),

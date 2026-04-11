@@ -10,10 +10,31 @@ import {
 
 type EntityDoc = Doc<"entities">;
 
+function assertSpriteUrl(spriteUrl: string | undefined) {
+  if (!spriteUrl) {
+    return;
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(spriteUrl);
+  } catch {
+    throw new Error("spriteUrl must be a valid URL.");
+  }
+
+  if (parsed.protocol !== "https:") {
+    throw new Error("spriteUrl must use https.");
+  }
+}
+
 async function resolveEntitySpriteUrl(
   ctx: QueryCtx,
   entity: EntityDoc,
 ): Promise<string | undefined> {
+  if (entity.spriteUrl) {
+    return entity.spriteUrl;
+  }
+
   const world = await ctx.db.query("world").first();
   const seasonalAssetId =
     world?.season !== undefined
@@ -67,6 +88,7 @@ export const create = mutation({
     entity: v.object(entityCreationFields),
   },
   handler: async (ctx, args) => {
+    assertSpriteUrl(args.entity.spriteUrl);
     const id = await ctx.db.insert("entities", args.entity);
     return await ctx.db.get(id);
   },
@@ -78,6 +100,7 @@ export const update = mutation({
     patch: v.object(entityPatchFields),
   },
   handler: async (ctx, args) => {
+    assertSpriteUrl(args.patch.spriteUrl);
     await ctx.db.patch(args.id, args.patch);
     return await ctx.db.get(args.id);
   },
