@@ -75,6 +75,10 @@ export const worldFields = {
   weather: v.optional(weatherValidator),
   /** Set after Phase 4 demo tiles/entities are inserted (idempotent bootstrap). */
   phase4DemoSeeded: v.optional(v.boolean()),
+  /** Set after Phase 6 demo decorations/entities are inserted (idempotent bootstrap). */
+  phase6DemoSeeded: v.optional(v.boolean()),
+  /** Set after Phase 7 demo shadows/sway samples are inserted (idempotent bootstrap). */
+  phase7DemoSeeded: v.optional(v.boolean()),
 };
 
 export const worldPatchFields = {
@@ -87,6 +91,8 @@ export const worldPatchFields = {
   season: v.optional(seasonValidator),
   weather: v.optional(weatherValidator),
   phase4DemoSeeded: v.optional(v.boolean()),
+  phase6DemoSeeded: v.optional(v.boolean()),
+  phase7DemoSeeded: v.optional(v.boolean()),
 };
 
 export const entityCreationFields = {

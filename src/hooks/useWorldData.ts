@@ -10,6 +10,7 @@ import {
   type TileGrid,
   type TileOverride,
   type WorldData,
+  type WorldEntity,
 } from "@/types/world";
 
 const api = generatedApi as typeof generatedApi & {
@@ -63,13 +64,23 @@ export function useWorldData(): WorldData {
   const bootstrapRequestedRef = useRef(false);
   const [bootstrapFailed, setBootstrapFailed] = useState(false);
   const hasBootstrapFailure = bootstrapFailed && world === null;
+  const hasOutdatedDemoSprites =
+    entities?.some((entity: WorldEntity) =>
+      entity.spriteUrl?.includes("picsum.photos/seed/mytopia") ||
+      entity.spriteUrl?.includes(".png&text="),
+    ) ?? false;
 
   useEffect(() => {
-    if (world === undefined) {
+    if (world === undefined || entities === undefined) {
       return;
     }
 
-    const needsBootstrap = world === null;
+    const needsBootstrap =
+      world === null ||
+      world.phase4DemoSeeded !== true ||
+      world.phase6DemoSeeded !== true ||
+      world.phase7DemoSeeded !== true ||
+      hasOutdatedDemoSprites;
 
     if (!needsBootstrap || bootstrapRequestedRef.current) {
       return;
@@ -77,11 +88,11 @@ export function useWorldData(): WorldData {
 
     bootstrapRequestedRef.current = true;
     void seedWorld().catch((error: unknown) => {
-      console.error("Failed to bootstrap world / Phase 4 demo.", error);
+      console.error("Failed to seed world demo content.", error);
       setBootstrapFailed(true);
       bootstrapRequestedRef.current = false;
     });
-  }, [seedWorld, world]);
+  }, [entities, hasOutdatedDemoSprites, seedWorld, world]);
 
   const worldConfig = world ?? DEFAULT_WORLD_CONFIG;
   const resolvedEntities = entities ?? [];

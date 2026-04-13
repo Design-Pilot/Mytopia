@@ -6,8 +6,11 @@ import { Container, Graphics } from "pixi.js";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { EntityLayer } from "@/components/EntityLayer";
+import { ShadowLayer } from "@/components/ShadowLayer";
 import { TileLayer } from "@/components/TileLayer";
+import { Tooltip } from "@/components/Tooltip";
 import { useCamera } from "@/hooks/useCamera";
+import { useInteractions } from "@/hooks/useInteractions";
 import { useWorldData } from "@/hooks/useWorldData";
 import {
   createDefaultIsoConfig,
@@ -60,6 +63,7 @@ function IsometricGridView({
     panX,
     panY,
     zoom,
+    isDragging,
     animateZoomTo,
     hoverTile,
     cursor,
@@ -124,6 +128,40 @@ function IsometricGridView({
     [hoverTile, halfH, halfW, isoConfig],
   );
 
+  const drawInteractionBackdrop = useCallback(
+    (g: Graphics) => {
+      g.clear();
+      g.rect(
+        worldCenter.screenX - worldWidth * 1.5,
+        worldCenter.screenY - worldHeight * 1.5,
+        worldWidth * 3,
+        worldHeight * 3,
+      ).fill({ color: 0xffffff, alpha: 0.001 });
+    },
+    [worldCenter.screenX, worldCenter.screenY, worldHeight, worldWidth],
+  );
+
+  const {
+    hoveredEntityId,
+    interactionMode,
+    selectedEntityId,
+    tooltipEntity,
+    tooltipPoint,
+    clearTransientUi,
+    handleBackgroundPointerTap,
+    handleContainerPointerLeave,
+    handleEntityPointerEnter,
+    handleEntityPointerLeave,
+    handleEntityPointerMove,
+    handleEntityPointerTap,
+  } = useInteractions(entities);
+
+  useEffect(() => {
+    if (isDragging) {
+      clearTransientUi();
+    }
+  }, [clearTransientUi, isDragging]);
+
   return (
     <div
       ref={containerRef}
@@ -131,7 +169,10 @@ function IsometricGridView({
       style={{ cursor }}
       onPointerCancel={onPointerCancel}
       onPointerDown={onPointerDown}
-      onPointerLeave={onPointerLeave}
+      onPointerLeave={() => {
+        onPointerLeave();
+        handleContainerPointerLeave();
+      }}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
     >
@@ -143,6 +184,11 @@ function IsometricGridView({
           resizeTo={containerRef}
         >
           <pixiContainer scale={zoom} x={panX} y={panY}>
+            <pixiGraphics
+              draw={drawInteractionBackdrop}
+              eventMode="static"
+              onPointerTap={handleBackgroundPointerTap}
+            />
             <TileLayer
               defaultTile={defaultTile}
               gridHeight={gridHeight}
@@ -150,10 +196,25 @@ function IsometricGridView({
               isoConfig={isoConfig}
               tileGrid={tileGrid}
             />
-            <EntityLayer entities={entities} isoConfig={isoConfig} />
-            <pixiGraphics draw={drawHover} />
+            <ShadowLayer entities={entities} isoConfig={isoConfig} />
+            <EntityLayer
+              entities={entities}
+              hoveredEntityId={interactionMode === "mouse" ? hoveredEntityId : null}
+              isoConfig={isoConfig}
+              isInteractionDisabled={isDragging}
+              onEntityPointerEnter={handleEntityPointerEnter}
+              onEntityPointerLeave={handleEntityPointerLeave}
+              onEntityPointerMove={handleEntityPointerMove}
+              onEntityPointerTap={handleEntityPointerTap}
+              selectedEntityId={selectedEntityId}
+            />
+            {/* Must not capture hits — it sits above buildings and would block hover/click. */}
+            <pixiGraphics draw={drawHover} eventMode="none" />
           </pixiContainer>
         </Application>
+      ) : null}
+      {tooltipEntity && tooltipPoint ? (
+        <Tooltip entity={tooltipEntity} point={tooltipPoint} />
       ) : null}
       <button
         type="button"
