@@ -128,18 +128,15 @@ function IsometricGridView({
     [hoverTile, halfH, halfW, isoConfig],
   );
 
-  const drawInteractionBackdrop = useCallback(
-    (g: Graphics) => {
-      g.clear();
-      g.rect(
-        worldCenter.screenX - worldWidth * 1.5,
-        worldCenter.screenY - worldHeight * 1.5,
-        worldWidth * 3,
-        worldHeight * 3,
-      ).fill({ color: 0xffffff, alpha: 0.001 });
-    },
-    [worldCenter.screenX, worldCenter.screenY, worldHeight, worldWidth],
-  );
+  // Use a very large fixed rect so the backdrop always covers the visible area
+  // regardless of how far the user has panned or zoomed.
+  const drawInteractionBackdrop = useCallback((g: Graphics) => {
+    g.clear();
+    g.rect(-50000, -50000, 100000, 100000).fill({
+      color: 0xffffff,
+      alpha: 0.001,
+    });
+  }, []);
 
   const {
     hoveredEntityId,

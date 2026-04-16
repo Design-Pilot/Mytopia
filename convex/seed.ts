@@ -74,11 +74,6 @@ const DECORATION_DEMO_SPRITES = {
   `),
 } as const;
 
-async function findEntityByName(ctx: MutationCtx, name: string) {
-  const entities = await ctx.db.query("entities").collect();
-  return entities.find((entity) => entity.name === name) ?? null;
-}
-
 async function upsertDemoEntity(
   ctx: MutationCtx,
   name: string,
@@ -87,7 +82,15 @@ async function upsertDemoEntity(
     "name"
   >,
 ) {
-  const existing = await findEntityByName(ctx, name);
+  // Match by grid position (indexed) + name to avoid clobbering unrelated user
+  // entities that happen to share a demo name.
+  const atPosition = await ctx.db
+    .query("entities")
+    .withIndex("by_position", (q) =>
+      q.eq("gridX", value.gridX).eq("gridY", value.gridY),
+    )
+    .collect();
+  const existing = atPosition.find((e) => e.name === name) ?? null;
 
   if (existing) {
     await ctx.db.patch(existing._id, value);
@@ -275,17 +278,17 @@ export const seedWorld = mutation({
       }
     }
 
-    if (world) {
+    if (world && !world.phase4DemoSeeded) {
       await insertPhase4Demo(ctx, world._id);
       world = await ctx.db.get(world._id);
     }
 
-    if (world) {
+    if (world && !world.phase6DemoSeeded) {
       await insertPhase6Demo(ctx, world._id);
       world = await ctx.db.get(world._id);
     }
 
-    if (world) {
+    if (world && !world.phase7DemoSeeded) {
       await insertPhase7Demo(ctx, world._id);
       world = await ctx.db.get(world._id);
     }

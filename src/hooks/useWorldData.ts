@@ -63,7 +63,10 @@ export function useWorldData(): WorldData {
   const seedWorld = useMutation(api.seed.seedWorld);
   const bootstrapRequestedRef = useRef(false);
   const [bootstrapFailed, setBootstrapFailed] = useState(false);
-  const hasBootstrapFailure = bootstrapFailed && world === null;
+  // Expose failure regardless of whether the world doc exists: seeding also
+  // runs upgrade paths on existing worlds, and those can fail silently if the
+  // failure is gated on world === null.
+  const hasBootstrapFailure = bootstrapFailed;
   const hasOutdatedDemoSprites =
     entities?.some((entity: WorldEntity) =>
       entity.spriteUrl?.includes("picsum.photos/seed/mytopia") ||

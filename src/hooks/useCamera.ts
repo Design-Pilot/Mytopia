@@ -298,6 +298,31 @@ export function useCamera({
     return () => cancelZoomAnimation();
   }, [cancelZoomAnimation]);
 
+  // Clean up stale pointer state when a pointer is released outside the
+  // container before crossing the drag threshold (no pointer capture in that
+  // case, so the element's onPointerUp never fires).
+  useEffect(() => {
+    const onWindowPointerEnd = (e: PointerEvent) => {
+      if (!pointers.current.has(e.pointerId)) return; // already handled
+      pointers.current.delete(e.pointerId);
+      if (pointers.current.size < 2) {
+        pinchInitialRef.current = null;
+      }
+      const drag = dragRef.current;
+      if (drag && e.pointerId === drag.pointerId) {
+        dragRef.current = null;
+        setIsDragging(false);
+      }
+    };
+
+    window.addEventListener("pointerup", onWindowPointerEnd);
+    window.addEventListener("pointercancel", onWindowPointerEnd);
+    return () => {
+      window.removeEventListener("pointerup", onWindowPointerEnd);
+      window.removeEventListener("pointercancel", onWindowPointerEnd);
+    };
+  }, []);
+
   const distance = (a: { clientX: number; clientY: number }, b: typeof a) =>
     Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
 

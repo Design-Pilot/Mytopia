@@ -17,21 +17,36 @@ const VIEWPORT_MARGIN = 12;
 
 export function Tooltip({ entity, point }: TooltipProps) {
   const tooltipRef = useRef<HTMLDivElement | null>(null);
+  const sizeRef = useRef({ width: 0, height: 0 });
   const [position, setPosition] = useState(() => ({
     left: point.x + TOOLTIP_OFFSET,
     top: point.y + TOOLTIP_OFFSET,
   }));
 
+  // Measure the tooltip's rendered size when content changes. Reading the DOM
+  // only when the entity changes (not on every pointer move) avoids forced
+  // layout on the hottest interaction path.
   useLayoutEffect(() => {
     const el = tooltipRef.current;
-    if (!el) {
-      return;
-    }
-
+    if (!el) return;
     const { width, height } = el.getBoundingClientRect();
+    sizeRef.current = { width, height };
+    // Also clamp immediately with the freshly-measured size so the first
+    // render after an entity change is already in the right position.
     const maxLeft = window.innerWidth - width - VIEWPORT_MARGIN;
     const maxTop = window.innerHeight - height - VIEWPORT_MARGIN;
+    setPosition({
+      left: Math.max(VIEWPORT_MARGIN, Math.min(point.x + TOOLTIP_OFFSET, maxLeft)),
+      top: Math.max(VIEWPORT_MARGIN, Math.min(point.y + TOOLTIP_OFFSET, maxTop)),
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entity._id]);
 
+  // Clamp position using the cached size when the pointer moves. No DOM reads.
+  useLayoutEffect(() => {
+    const { width, height } = sizeRef.current;
+    const maxLeft = window.innerWidth - width - VIEWPORT_MARGIN;
+    const maxTop = window.innerHeight - height - VIEWPORT_MARGIN;
     setPosition({
       left: Math.max(
         VIEWPORT_MARGIN,
@@ -42,7 +57,7 @@ export function Tooltip({ entity, point }: TooltipProps) {
         Math.min(point.y + TOOLTIP_OFFSET, maxTop),
       ),
     });
-  }, [entity._id, point.x, point.y]);
+  }, [point.x, point.y]);
 
   return (
     <div
