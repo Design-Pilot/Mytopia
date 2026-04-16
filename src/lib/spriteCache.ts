@@ -1,3 +1,5 @@
+"use client";
+
 import { Assets, type Texture } from "pixi.js";
 
 const textureByUrl = new Map<string, Texture>();
@@ -33,7 +35,9 @@ export function loadTextureCached(url: string): Promise<Texture> {
 
   let inflight = inflightByUrl.get(url);
   if (!inflight) {
-    inflight = Assets.load<Texture>(url)
+    // Use explicit loadParser so extensionless URLs (e.g. Convex storage) are
+    // recognised as images instead of being silently skipped.
+    inflight = Assets.load<Texture>({ src: url, loadParser: "loadTextures" })
       .then((texture) => {
         markTextureRecent(url, texture);
         evictOldestIfNeeded();

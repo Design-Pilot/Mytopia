@@ -1,9 +1,9 @@
 "use client";
 
 import { Application, extend } from "@pixi/react";
-import { useConvexConnectionState } from "convex/react";
-import { Container, Graphics } from "pixi.js";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMutation, useConvexConnectionState } from "convex/react";
+import { Container, FederatedPointerEvent, Graphics } from "pixi.js";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { EntityLayer } from "@/components/EntityLayer";
 import { ShadowLayer } from "@/components/ShadowLayer";
@@ -15,27 +15,30 @@ import { useWorldData } from "@/hooks/useWorldData";
 import {
   createDefaultIsoConfig,
   getGridWorldCenter,
+  screenToTile,
   tileToScreen,
 } from "@/lib/isoMath";
 import { DEFAULT_WORLD_CONFIG, type WorldData } from "@/types/world";
+import { api } from "../../convex/_generated/api";
+import { type PendingPlacement } from "@/components/IsometricCanvas";
 
 extend({ Container, Graphics });
 
 const CANVAS_BACKGROUND = 0x2a3d2f;
 
+// ─── view ─────────────────────────────────────────────────────────────────────
+
 function IsometricGridView({
   worldData,
+  onTilePlaced,
+  placementFootprint,
 }: {
   worldData: WorldData;
+  onTilePlaced?: (gx: number, gy: number) => void;
+  placementFootprint?: { w: number; h: number };
 }) {
   const {
-    world: {
-      gridWidth,
-      gridHeight,
-      tileWidth,
-      tileHeight,
-      defaultTile,
-    },
+    world: { gridWidth, gridHeight, tileWidth, tileHeight, defaultTile },
     tileGrid,
     entities,
   } = worldData;
@@ -88,13 +91,8 @@ function IsometricGridView({
     const el = containerRef.current;
     if (!el) return;
 
-    const update = () => {
-      setSize({
-        width: el.clientWidth,
-        height: el.clientHeight,
-      });
-    };
-
+    const update = () =>
+      setSize({ width: el.clientWidth, height: el.clientHeight });
     update();
 
     const observer = new ResizeObserver(update);
@@ -104,32 +102,43 @@ function IsometricGridView({
 
   const halfW = isoConfig.tileWidth / 2;
   const halfH = isoConfig.tileHeight / 2;
+  const isPlacementMode = onTilePlaced !== undefined;
 
   const drawHover = useCallback(
     (g: Graphics) => {
       g.clear();
       const ht = hoverTile;
       if (!ht) return;
-      const c = tileToScreen(ht.gx, ht.gy, isoConfig);
-      const pts = [
-        c.screenX,
-        c.screenY - halfH,
-        c.screenX + halfW,
-        c.screenY,
-        c.screenX,
-        c.screenY + halfH,
-        c.screenX - halfW,
-        c.screenY,
-      ];
-      g.poly(pts, true)
-        .fill({ color: 0xa8f0c0, alpha: 0.45 })
-        .stroke({ width: 2, color: 0xffffff, alpha: 0.9 });
+
+      const fw = placementFootprint?.w ?? 1;
+      const fh = placementFootprint?.h ?? 1;
+      // Gold in placement mode, green otherwise
+      const fillColor = isPlacementMode ? 0xffd700 : 0xa8f0c0;
+      const fillAlpha = isPlacementMode ? 0.4 : 0.45;
+
+      for (let dx = 0; dx < fw; dx++) {
+        for (let dy = 0; dy < fh; dy++) {
+          const c = tileToScreen(ht.gx + dx, ht.gy + dy, isoConfig);
+          const pts = [
+            c.screenX,
+            c.screenY - halfH,
+            c.screenX + halfW,
+            c.screenY,
+            c.screenX,
+            c.screenY + halfH,
+            c.screenX - halfW,
+            c.screenY,
+          ];
+          g.poly(pts, true)
+            .fill({ color: fillColor, alpha: fillAlpha })
+            .stroke({ width: 2, color: 0xffffff, alpha: 0.9 });
+        }
+      }
     },
-    [hoverTile, halfH, halfW, isoConfig],
+    [hoverTile, halfH, halfW, isoConfig, isPlacementMode, placementFootprint],
   );
 
-  // Use a very large fixed rect so the backdrop always covers the visible area
-  // regardless of how far the user has panned or zoomed.
+  // Large backdrop so pointer events always have a target regardless of pan/zoom.
   const drawInteractionBackdrop = useCallback((g: Graphics) => {
     g.clear();
     g.rect(-50000, -50000, 100000, 100000).fill({
@@ -154,16 +163,34 @@ function IsometricGridView({
   } = useInteractions(entities);
 
   useEffect(() => {
-    if (isDragging) {
-      clearTransientUi();
-    }
+    if (isDragging) clearTransientUi();
   }, [clearTransientUi, isDragging]);
+
+  const handleBackgroundTap = useCallback(
+    (event: FederatedPointerEvent) => {
+      if (onTilePlaced) {
+        // Derive tile from event so placement works even without a prior pointer-move
+        // (common on touch, and on mouse immediately after entering placement mode).
+        const worldX = (event.global.x - panX) / zoom;
+        const worldY = (event.global.y - panY) / zoom;
+        const tile = screenToTile(worldX, worldY, isoConfig);
+        const gx = Math.floor(tile.gridX);
+        const gy = Math.floor(tile.gridY);
+        if (gx >= 0 && gy >= 0 && gx < gridWidth && gy < gridHeight) {
+          onTilePlaced(gx, gy);
+          return;
+        }
+      }
+      handleBackgroundPointerTap(event);
+    },
+    [onTilePlaced, panX, panY, zoom, isoConfig, gridWidth, gridHeight, handleBackgroundPointerTap],
+  );
 
   return (
     <div
       ref={containerRef}
       className="relative h-full w-full touch-none select-none"
-      style={{ cursor }}
+      style={{ cursor: isPlacementMode ? "crosshair" : cursor }}
       onPointerCancel={onPointerCancel}
       onPointerDown={onPointerDown}
       onPointerLeave={() => {
@@ -184,7 +211,7 @@ function IsometricGridView({
             <pixiGraphics
               draw={drawInteractionBackdrop}
               eventMode="static"
-              onPointerTap={handleBackgroundPointerTap}
+              onPointerTap={handleBackgroundTap}
             />
             <TileLayer
               defaultTile={defaultTile}
@@ -196,7 +223,9 @@ function IsometricGridView({
             <ShadowLayer entities={entities} isoConfig={isoConfig} />
             <EntityLayer
               entities={entities}
-              hoveredEntityId={interactionMode === "mouse" ? hoveredEntityId : null}
+              hoveredEntityId={
+                interactionMode === "mouse" ? hoveredEntityId : null
+              }
               isoConfig={isoConfig}
               isInteractionDisabled={isDragging}
               onEntityPointerEnter={handleEntityPointerEnter}
@@ -229,21 +258,56 @@ function IsometricGridView({
   );
 }
 
-function IsometricGridWithConvex() {
+// ─── convex-connected wrapper ─────────────────────────────────────────────────
+
+function IsometricGridWithConvex({
+  pendingPlacement,
+  onEntityPlaced,
+}: {
+  pendingPlacement: PendingPlacement | null;
+  onEntityPlaced: () => void;
+}) {
   const worldData = useWorldData();
   const connectionState = useConvexConnectionState();
+  const createEntity = useMutation(api.entities.create);
+  const isPlacingRef = useRef(false);
+
   const showOfflineFallback =
     worldData.bootstrapFailed ||
     (!connectionState.isWebSocketConnected &&
       connectionState.connectionRetries > 0);
 
   useEffect(() => {
-    if (process.env.NODE_ENV === "production" || worldData.isLoading) {
-      return;
-    }
-
+    if (process.env.NODE_ENV === "production" || worldData.isLoading) return;
     console.log("MyTopia world data", worldData);
   }, [worldData]);
+
+  const handleTilePlaced = useCallback(
+    async (gx: number, gy: number) => {
+      if (!pendingPlacement || isPlacingRef.current) return;
+      isPlacingRef.current = true;
+      try {
+        await createEntity({
+          entity: {
+            type: pendingPlacement.entityType,
+            name: pendingPlacement.name,
+            gridX: gx,
+            gridY: gy,
+            assetId: pendingPlacement.assetId,
+            status: "active",
+            footprintW: pendingPlacement.footprintW,
+            footprintH: pendingPlacement.footprintH,
+          },
+        });
+        onEntityPlaced();
+      } catch (error) {
+        console.error("MyTopia: failed to place entity", error);
+      } finally {
+        isPlacingRef.current = false;
+      }
+    },
+    [pendingPlacement, createEntity, onEntityPlaced],
+  );
 
   if (worldData.isLoading) {
     return <IsometricGridLoading showOfflineFallback={showOfflineFallback} />;
@@ -255,13 +319,23 @@ function IsometricGridWithConvex() {
 
   return (
     <div className="relative h-full w-full">
-      <IsometricGridView worldData={worldData} />
-      <p className="pointer-events-none absolute left-4 bottom-4 rounded-md bg-black/40 px-3 py-1.5 text-xs text-emerald-100 backdrop-blur">
+      <IsometricGridView
+        worldData={worldData}
+        onTilePlaced={pendingPlacement ? handleTilePlaced : undefined}
+        placementFootprint={
+          pendingPlacement
+            ? { w: pendingPlacement.footprintW, h: pendingPlacement.footprintH }
+            : undefined
+        }
+      />
+      <p className="pointer-events-none absolute bottom-4 left-4 rounded-md bg-black/40 px-3 py-1.5 text-xs text-emerald-100 backdrop-blur">
         {`${worldData.entities.length} entities, ${worldData.assets.length} assets`}
       </p>
     </div>
   );
 }
+
+// ─── loading / offline fallback ───────────────────────────────────────────────
 
 function IsometricGridLoading({
   showOfflineFallback,
@@ -288,7 +362,7 @@ function IsometricGridLoading({
     return (
       <div className="relative h-full w-full">
         <IsometricGridView worldData={fallbackData} />
-        <p className="pointer-events-none absolute left-4 bottom-4 rounded-md bg-black/40 px-3 py-1.5 text-xs text-amber-100 backdrop-blur">
+        <p className="pointer-events-none absolute bottom-4 left-4 rounded-md bg-black/40 px-3 py-1.5 text-xs text-amber-100 backdrop-blur">
           Convex is offline locally, so this is the fallback demo grid.
         </p>
       </div>
@@ -298,15 +372,23 @@ function IsometricGridLoading({
   return (
     <div className="relative h-full w-full">
       <IsometricGridView worldData={fallbackData} />
-      <p className="pointer-events-none absolute left-4 bottom-4 rounded-md bg-black/40 px-3 py-1.5 text-xs text-emerald-100 backdrop-blur">
+      <p className="pointer-events-none absolute bottom-4 left-4 rounded-md bg-black/40 px-3 py-1.5 text-xs text-emerald-100 backdrop-blur">
         Loading world data...
       </p>
     </div>
   );
 }
 
+// ─── public export ────────────────────────────────────────────────────────────
+
 /** Isometric scene: tiles, entities, camera. Uses Convex when `NEXT_PUBLIC_CONVEX_URL` is set. */
-export function IsometricGrid() {
+export function IsometricGrid({
+  pendingPlacement,
+  onEntityPlaced,
+}: {
+  pendingPlacement: PendingPlacement | null;
+  onEntityPlaced: () => void;
+}) {
   if (!process.env.NEXT_PUBLIC_CONVEX_URL) {
     const offline: WorldData = {
       world: DEFAULT_WORLD_CONFIG,
@@ -323,12 +405,17 @@ export function IsometricGrid() {
     return (
       <div className="relative h-full w-full">
         <IsometricGridView worldData={offline} />
-        <p className="pointer-events-none absolute left-4 bottom-4 rounded-md bg-black/40 px-3 py-1.5 text-xs text-amber-100 backdrop-blur">
+        <p className="pointer-events-none absolute bottom-4 left-4 rounded-md bg-black/40 px-3 py-1.5 text-xs text-amber-100 backdrop-blur">
           Set NEXT_PUBLIC_CONVEX_URL for live data (run `npx convex dev`).
         </p>
       </div>
     );
   }
 
-  return <IsometricGridWithConvex />;
+  return (
+    <IsometricGridWithConvex
+      pendingPlacement={pendingPlacement}
+      onEntityPlaced={onEntityPlaced}
+    />
+  );
 }
