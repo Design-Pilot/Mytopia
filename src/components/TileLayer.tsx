@@ -88,5 +88,6 @@ export function TileLayer({
     [defaultTile, gridHeight, gridWidth, halfH, halfW, isoConfig, tileGrid],
   );
 
-  return <pixiGraphics draw={drawTiles} />;
+  /* Non-interactive: tiles are under entities; hits should reach buildings or the backdrop. */
+  return <pixiGraphics draw={drawTiles} eventMode="none" />;
 }

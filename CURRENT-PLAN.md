@@ -1,10 +1,9 @@
 # Current Execution Plan
 
-Date: 2026-04-10
-Target: Phase 3 - Convex Data Layer
+Date: 2026-04-11
+Target: Phase 6 - Decorations + Sprite Animations
 
-1. Define Phase 3 types and backend schema.
-2. Add Convex queries, mutations, and seed helpers.
-3. Assemble renderer-ready world data in a hook.
-4. Connect the viewer to loaded world state.
-5. Run verification and clean up issues.
+1. Confirm the rendering path can support both static sprites and horizontal strip animations.
+2. Render decoration entities alongside buildings with the same depth sorting and graceful fallbacks.
+3. Seed a few demo decorations, including one looping animated example, and auto-upgrade older demo worlds.
+4. Verify the result with lint, production build, and a browser sanity pass before handing off to Phase 7.

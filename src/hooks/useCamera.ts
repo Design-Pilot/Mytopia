@@ -298,6 +298,31 @@ export function useCamera({
     return () => cancelZoomAnimation();
   }, [cancelZoomAnimation]);
 
+  // Clean up stale pointer state when a pointer is released outside the
+  // container before crossing the drag threshold (no pointer capture in that
+  // case, so the element's onPointerUp never fires).
+  useEffect(() => {
+    const onWindowPointerEnd = (e: PointerEvent) => {
+      if (!pointers.current.has(e.pointerId)) return; // already handled
+      pointers.current.delete(e.pointerId);
+      if (pointers.current.size < 2) {
+        pinchInitialRef.current = null;
+      }
+      const drag = dragRef.current;
+      if (drag && e.pointerId === drag.pointerId) {
+        dragRef.current = null;
+        setIsDragging(false);
+      }
+    };
+
+    window.addEventListener("pointerup", onWindowPointerEnd);
+    window.addEventListener("pointercancel", onWindowPointerEnd);
+    return () => {
+      window.removeEventListener("pointerup", onWindowPointerEnd);
+      window.removeEventListener("pointercancel", onWindowPointerEnd);
+    };
+  }, []);
+
   const distance = (a: { clientX: number; clientY: number }, b: typeof a) =>
     Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
 
@@ -329,11 +354,8 @@ export function useCamera({
         lastX: e.clientX,
         lastY: e.clientY,
       };
-      try {
-        e.currentTarget.setPointerCapture(e.pointerId);
-      } catch {
-        /* ignore */
-      }
+      /* Do not setPointerCapture here — it retargets pointerup to this div so the
+       * canvas never receives a full click and Pixi never fires pointertap on buildings. */
     }
   }, []);
 
@@ -383,6 +405,14 @@ export function useCamera({
           if (Math.hypot(totalDx, totalDy) > DRAG_THRESHOLD_PX) {
             drag.active = true;
             setIsDragging(true);
+            const el = containerRef.current;
+            if (el) {
+              try {
+                el.setPointerCapture(e.pointerId);
+              } catch {
+                /* ignore */
+              }
+            }
           }
         }
         if (drag.active) {
@@ -411,10 +441,13 @@ export function useCamera({
       if (drag && e.pointerId === drag.pointerId) {
         dragRef.current = null;
         setIsDragging(false);
-        try {
-          e.currentTarget.releasePointerCapture(e.pointerId);
-        } catch {
-          /* ignore */
+        const el = containerRef.current;
+        if (el?.hasPointerCapture(e.pointerId)) {
+          try {
+            el.releasePointerCapture(e.pointerId);
+          } catch {
+            /* ignore */
+          }
         }
       }
     },
@@ -439,6 +472,7 @@ export function useCamera({
     panX,
     panY,
     zoom,
+    isDragging,
     animateZoomTo,
     hoverTile,
     cursor: isDragging ? ("grabbing" as const) : ("grab" as const),
