@@ -1,3 +1,5 @@
+"use client";
+
 import { Assets, type Texture } from "pixi.js";
 
 const textureByUrl = new Map<string, Texture>();

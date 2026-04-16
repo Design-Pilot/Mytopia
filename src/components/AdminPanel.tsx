@@ -35,6 +35,7 @@ export function AdminPanel({
   const [footprintW, setFootprintW] = useState(1);
   const [footprintH, setFootprintH] = useState(1);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [hasFile, setHasFile] = useState(false);
 
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -43,7 +44,10 @@ export function AdminPanel({
 
   async function handleUpload() {
     const file = fileRef.current?.files?.[0];
-    if (!file) return;
+    if (!file) {
+      setError("Please select a file first.");
+      return;
+    }
 
     setPhase("uploading");
     setError(null);
@@ -89,6 +93,7 @@ export function AdminPanel({
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPhase("idle");
     setPreviewUrl(null);
+    setHasFile(false);
     setName("");
     setFrames(1);
     setFootprintW(1);
@@ -141,6 +146,7 @@ export function AdminPanel({
               footprintW={footprintW}
               footprintH={footprintH}
               error={error}
+              canUpload={hasFile}
               onNameChange={setName}
               onTypeChange={setAssetType}
               onFramesChange={setFrames}
@@ -149,6 +155,7 @@ export function AdminPanel({
                 setFootprintH(h);
               }}
               onFileChange={(f) => {
+                setHasFile(f !== null);
                 if (f && !name) setName(f.name.replace(/\.[^.]+$/, ""));
               }}
               onUpload={handleUpload}
@@ -256,6 +263,7 @@ function UploadForm({
   footprintW,
   footprintH,
   error,
+  canUpload,
   onNameChange,
   onTypeChange,
   onFramesChange,
@@ -270,6 +278,7 @@ function UploadForm({
   footprintW: number;
   footprintH: number;
   error: string | null;
+  canUpload: boolean;
   onNameChange: (v: string) => void;
   onTypeChange: (v: AssetType) => void;
   onFramesChange: (v: number) => void;
@@ -339,7 +348,8 @@ function UploadForm({
 
       <button
         type="button"
-        className="w-full rounded bg-emerald-600 px-3 py-1.5 text-xs font-medium transition hover:bg-emerald-500"
+        disabled={!canUpload}
+        className="w-full rounded bg-emerald-600 px-3 py-1.5 text-xs font-medium transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-40"
         onClick={onUpload}
       >
         Upload &amp; Place

@@ -24,13 +24,15 @@ export function IsometricCanvas() {
         pendingPlacement={pending}
         onEntityPlaced={() => setPending(null)}
       />
-      <AdminPanel
-        isPendingPlacement={pending !== null}
-        onAssetReadyToPlace={(assetId, name, entityType, footprintW, footprintH) =>
-          setPending({ assetId, name, entityType, footprintW, footprintH })
-        }
-        onCancelPlacement={() => setPending(null)}
-      />
+      {process.env.NEXT_PUBLIC_CONVEX_URL ? (
+        <AdminPanel
+          isPendingPlacement={pending !== null}
+          onAssetReadyToPlace={(assetId, name, entityType, footprintW, footprintH) =>
+            setPending({ assetId, name, entityType, footprintW, footprintH })
+          }
+          onCancelPlacement={() => setPending(null)}
+        />
+      ) : null}
     </div>
   );
 }

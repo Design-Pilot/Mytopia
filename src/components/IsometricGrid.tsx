@@ -3,7 +3,7 @@
 import { Application, extend } from "@pixi/react";
 import { useMutation, useConvexConnectionState } from "convex/react";
 import { Container, FederatedPointerEvent, Graphics } from "pixi.js";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { EntityLayer } from "@/components/EntityLayer";
 import { ShadowLayer } from "@/components/ShadowLayer";
@@ -15,6 +15,7 @@ import { useWorldData } from "@/hooks/useWorldData";
 import {
   createDefaultIsoConfig,
   getGridWorldCenter,
+  screenToTile,
   tileToScreen,
 } from "@/lib/isoMath";
 import { DEFAULT_WORLD_CONFIG, type WorldData } from "@/types/world";
@@ -167,13 +168,22 @@ function IsometricGridView({
 
   const handleBackgroundTap = useCallback(
     (event: FederatedPointerEvent) => {
-      if (onTilePlaced && hoverTile) {
-        onTilePlaced(hoverTile.gx, hoverTile.gy);
-      } else {
-        handleBackgroundPointerTap(event);
+      if (onTilePlaced) {
+        // Derive tile from event so placement works even without a prior pointer-move
+        // (common on touch, and on mouse immediately after entering placement mode).
+        const worldX = (event.global.x - panX) / zoom;
+        const worldY = (event.global.y - panY) / zoom;
+        const tile = screenToTile(worldX, worldY, isoConfig);
+        const gx = Math.floor(tile.gridX);
+        const gy = Math.floor(tile.gridY);
+        if (gx >= 0 && gy >= 0 && gx < gridWidth && gy < gridHeight) {
+          onTilePlaced(gx, gy);
+          return;
+        }
       }
+      handleBackgroundPointerTap(event);
     },
-    [onTilePlaced, hoverTile, handleBackgroundPointerTap],
+    [onTilePlaced, panX, panY, zoom, isoConfig, gridWidth, gridHeight, handleBackgroundPointerTap],
   );
 
   return (
@@ -260,6 +270,7 @@ function IsometricGridWithConvex({
   const worldData = useWorldData();
   const connectionState = useConvexConnectionState();
   const createEntity = useMutation(api.entities.create);
+  const isPlacingRef = useRef(false);
 
   const showOfflineFallback =
     worldData.bootstrapFailed ||
@@ -273,20 +284,27 @@ function IsometricGridWithConvex({
 
   const handleTilePlaced = useCallback(
     async (gx: number, gy: number) => {
-      if (!pendingPlacement) return;
-      await createEntity({
-        entity: {
-          type: pendingPlacement.entityType,
-          name: pendingPlacement.name,
-          gridX: gx,
-          gridY: gy,
-          assetId: pendingPlacement.assetId,
-          status: "active",
-          footprintW: pendingPlacement.footprintW,
-          footprintH: pendingPlacement.footprintH,
-        },
-      });
-      onEntityPlaced();
+      if (!pendingPlacement || isPlacingRef.current) return;
+      isPlacingRef.current = true;
+      try {
+        await createEntity({
+          entity: {
+            type: pendingPlacement.entityType,
+            name: pendingPlacement.name,
+            gridX: gx,
+            gridY: gy,
+            assetId: pendingPlacement.assetId,
+            status: "active",
+            footprintW: pendingPlacement.footprintW,
+            footprintH: pendingPlacement.footprintH,
+          },
+        });
+        onEntityPlaced();
+      } catch (error) {
+        console.error("MyTopia: failed to place entity", error);
+      } finally {
+        isPlacingRef.current = false;
+      }
     },
     [pendingPlacement, createEntity, onEntityPlaced],
   );
