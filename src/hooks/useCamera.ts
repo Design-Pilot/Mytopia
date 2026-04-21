@@ -53,7 +53,7 @@ export function useCamera({
       Math.min(
         (viewportWidth - fitPadding * 2) / worldWidth,
         (viewportHeight - fitPadding * 2) / worldHeight,
-        1.35,
+        1.0,
       ),
     ),
   );

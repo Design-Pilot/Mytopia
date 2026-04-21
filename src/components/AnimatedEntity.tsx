@@ -255,7 +255,7 @@ export function AnimatedEntity({
       ? loadedTextureState.texture
       : undefined);
 
-  const isInteractive = entity.type === "building";
+  const isInteractive = true;
   const visualScale = isHovered ? 1.05 : 1;
   const hoverFilter = useMemo(() => {
     const filter = new ColorMatrixFilter();

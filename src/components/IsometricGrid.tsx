@@ -5,8 +5,9 @@ import { useMutation, useConvexConnectionState } from "convex/react";
 import { Container, FederatedPointerEvent, Graphics } from "pixi.js";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { EntityEditPanel } from "@/components/EntityEditPanel";
 import { EntityLayer } from "@/components/EntityLayer";
-import { ShadowLayer } from "@/components/ShadowLayer";
+
 import { TileLayer } from "@/components/TileLayer";
 import { Tooltip } from "@/components/Tooltip";
 import { useCamera } from "@/hooks/useCamera";
@@ -18,7 +19,7 @@ import {
   screenToTile,
   tileToScreen,
 } from "@/lib/isoMath";
-import { DEFAULT_WORLD_CONFIG, type WorldData } from "@/types/world";
+import { DEFAULT_WORLD_CONFIG, type WorldData, type WorldEntity } from "@/types/world";
 import { api } from "../../convex/_generated/api";
 import { type PendingPlacement } from "@/components/IsometricCanvas";
 
@@ -32,10 +33,12 @@ function IsometricGridView({
   worldData,
   onTilePlaced,
   placementFootprint,
+  onEntitySelected,
 }: {
   worldData: WorldData;
   onTilePlaced?: (gx: number, gy: number) => void;
   placementFootprint?: { w: number; h: number };
+  onEntitySelected?: (id: WorldEntity["_id"] | null) => void;
 }) {
   const {
     world: { gridWidth, gridHeight, tileWidth, tileHeight, defaultTile },
@@ -166,6 +169,10 @@ function IsometricGridView({
     if (isDragging) clearTransientUi();
   }, [clearTransientUi, isDragging]);
 
+  useEffect(() => {
+    onEntitySelected?.(selectedEntityId);
+  }, [onEntitySelected, selectedEntityId]);
+
   const handleBackgroundTap = useCallback(
     (event: FederatedPointerEvent) => {
       if (onTilePlaced) {
@@ -174,8 +181,8 @@ function IsometricGridView({
         const worldX = (event.global.x - panX) / zoom;
         const worldY = (event.global.y - panY) / zoom;
         const tile = screenToTile(worldX, worldY, isoConfig);
-        const gx = Math.floor(tile.gridX);
-        const gy = Math.floor(tile.gridY);
+        const gx = Math.round(tile.gridX);
+        const gy = Math.round(tile.gridY);
         if (gx >= 0 && gy >= 0 && gx < gridWidth && gy < gridHeight) {
           onTilePlaced(gx, gy);
           return;
@@ -203,8 +210,10 @@ function IsometricGridView({
       {size.width > 0 && size.height > 0 ? (
         <Application
           antialias
+          autoDensity
           backgroundColor={CANVAS_BACKGROUND}
           className="block"
+          resolution={window.devicePixelRatio || 1}
           resizeTo={containerRef}
         >
           <pixiContainer scale={zoom} x={panX} y={panY}>
@@ -220,7 +229,7 @@ function IsometricGridView({
               isoConfig={isoConfig}
               tileGrid={tileGrid}
             />
-            <ShadowLayer entities={entities} isoConfig={isoConfig} />
+
             <EntityLayer
               entities={entities}
               hoveredEntityId={
@@ -270,7 +279,38 @@ function IsometricGridWithConvex({
   const worldData = useWorldData();
   const connectionState = useConvexConnectionState();
   const createEntity = useMutation(api.entities.create);
+  const updateEntity = useMutation(api.entities.update);
+  const removeEntity = useMutation(api.entities.remove);
   const isPlacingRef = useRef(false);
+
+  const [selectedEntityId, setSelectedEntityId] =
+    useState<WorldEntity["_id"] | null>(null);
+  const [draftFootprint, setDraftFootprint] = useState<{
+    w: number;
+    h: number;
+  } | null>(null);
+
+  // Reset draft when selection changes
+  useEffect(() => {
+    setDraftFootprint(null);
+  }, [selectedEntityId]);
+
+  const selectedEntity = selectedEntityId
+    ? (worldData.entities.find((e) => e._id === selectedEntityId) ?? null)
+    : null;
+
+  // Apply draft footprint to the world data so AnimatedEntity re-renders immediately
+  const patchedWorldData = useMemo(() => {
+    if (!selectedEntityId || !draftFootprint) return worldData;
+    return {
+      ...worldData,
+      entities: worldData.entities.map((e) =>
+        e._id === selectedEntityId
+          ? { ...e, footprintW: draftFootprint.w, footprintH: draftFootprint.h }
+          : e,
+      ),
+    };
+  }, [worldData, selectedEntityId, draftFootprint]);
 
   const showOfflineFallback =
     worldData.bootstrapFailed ||
@@ -309,6 +349,25 @@ function IsometricGridWithConvex({
     [pendingPlacement, createEntity, onEntityPlaced],
   );
 
+  const handleEntitySave = useCallback(
+    async (patch: {
+      gridX: number;
+      gridY: number;
+      footprintW: number;
+      footprintH: number;
+    }) => {
+      if (!selectedEntityId) return;
+      await updateEntity({ id: selectedEntityId, patch });
+    },
+    [selectedEntityId, updateEntity],
+  );
+
+  const handleEntityDelete = useCallback(async () => {
+    if (!selectedEntityId) return;
+    await removeEntity({ id: selectedEntityId });
+    setSelectedEntityId(null);
+  }, [selectedEntityId, removeEntity]);
+
   if (worldData.isLoading) {
     return <IsometricGridLoading showOfflineFallback={showOfflineFallback} />;
   }
@@ -320,14 +379,25 @@ function IsometricGridWithConvex({
   return (
     <div className="relative h-full w-full">
       <IsometricGridView
-        worldData={worldData}
+        worldData={patchedWorldData}
         onTilePlaced={pendingPlacement ? handleTilePlaced : undefined}
         placementFootprint={
           pendingPlacement
             ? { w: pendingPlacement.footprintW, h: pendingPlacement.footprintH }
             : undefined
         }
+        onEntitySelected={setSelectedEntityId}
       />
+      {selectedEntity && !pendingPlacement ? (
+        <EntityEditPanel
+          key={selectedEntity._id}
+          entity={selectedEntity}
+          onClose={() => setSelectedEntityId(null)}
+          onSave={handleEntitySave}
+          onDelete={handleEntityDelete}
+          onFootprintChange={(w, h) => setDraftFootprint({ w, h })}
+        />
+      ) : null}
       <p className="pointer-events-none absolute bottom-4 left-4 rounded-md bg-black/40 px-3 py-1.5 text-xs text-emerald-100 backdrop-blur">
         {`${worldData.entities.length} entities, ${worldData.assets.length} assets`}
       </p>

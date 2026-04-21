@@ -21,6 +21,7 @@
 /build
 
 # misc
+.playwright-mcp/
 .DS_Store
 *.pem
 

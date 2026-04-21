@@ -43,12 +43,7 @@ export function useInteractions(entities: WorldEntity[]) {
   }, [tooltipState]);
 
   const entityById = useMemo(
-    () =>
-      new Map(
-        entities
-          .filter((entity) => entity.type === "building")
-          .map((entity) => [entity._id, entity]),
-      ),
+    () => new Map(entities.map((entity) => [entity._id, entity])),
     [entities],
   );
 
